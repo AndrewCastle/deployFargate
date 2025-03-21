@@ -39,9 +39,8 @@ jobs:
 
       - name: Update ECS service on Fargate
         run: |
-          # Aquí se debe tener configurada una definición de tarea previamente en ECS
           aws ecs update-service \
-            --cluster <nombre-de-tu-cluster> \
-            --service <nombre-del-servicio> \
+            --cluster deployFargate-cluster \
+            --service testFargate-service \
             --force-new-deployment \
             --region ${{ secrets.AWS_REGION }}
