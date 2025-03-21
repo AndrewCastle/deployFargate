@@ -68,16 +68,27 @@ jobs:
         run: |
           # Obtener el estado del servicio ECS
           SERVICE_STATUS=$(aws ecs describe-services --cluster deployFargate-cluster --services testFargate-service --query "services[0].status" --output text)
-          TASK_STATUS=$(aws ecs describe-tasks --cluster deployFargate-cluster --service testFargate-service --query "tasks[0].lastStatus" --output text)
       
-          # Comprobar si el servicio está activo y si las tareas están corriendo
+          # Obtener el ID de las tareas en ejecución
+          TASK_ID=$(aws ecs list-tasks --cluster deployFargate-cluster --service-name testFargate-service --query "taskArns[0]" --output text)
+      
+          # Comprobar si el servicio está activo
           if [ "$SERVICE_STATUS" != "ACTIVE" ]; then
             echo "Error: El servicio no está activo. Estado del servicio: $SERVICE_STATUS"
             exit 1
           fi
       
+          # Comprobar el estado de la tarea si existe al menos una
+          if [ "$TASK_ID" == "None" ]; then
+            echo "Error: No hay tareas en ejecución en el servicio."
+            exit 1
+          fi
+      
+          # Obtener el estado de la tarea
+          TASK_STATUS=$(aws ecs describe-tasks --cluster deployFargate-cluster --tasks $TASK_ID --query "tasks[0].lastStatus" --output text)
+      
           if [ "$TASK_STATUS" != "RUNNING" ]; then
-            echo "Error: Las tareas no están corriendo. Estado de la tarea: $TASK_STATUS"
+            echo "Error: La tarea no está corriendo. Estado de la tarea: $TASK_STATUS"
             exit 1
           fi
       
@@ -87,4 +98,5 @@ jobs:
             echo "Error crítico en el despliegue: $EVENTS"
             exit 1
           fi
+      
           echo "El servicio está activo y las tareas están corriendo correctamente."
