@@ -46,8 +46,8 @@ jobs:
 
       - name: Verificar estado del despliegue en Fargate
         run: |
-          echo "Esperando 20 segundos para que el nuevo servicio se inicie..."
-          sleep 20
+          echo "Esperando 30 segundos para que el nuevo servicio se inicie..."
+          sleep 30
           
           TASK_ID=$(aws ecs list-tasks --cluster deployFargate-cluster --service-name testFargate-service --desired-status RUNNING --query "taskArns[-1]" --output text)
           echo "ID de la nueva tarea en ejecución: $TASK_ID"
