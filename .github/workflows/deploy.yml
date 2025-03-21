@@ -44,12 +44,43 @@ jobs:
             --force-new-deployment \
             --region ${{ secrets.AWS_REGION }}
             
-      - name: Describe ECS Service Deployment
+      - name: Monitor ECS Service Deployment
         run: |
-          echo "Getting deployment details for ECS service..."
-          DEPLOYMENT_DETAILS=$(aws ecs describe-services \
+          # Inicializar monitoreo de la implementación
+          echo "Monitoring ECS service deployment..."
+          
+          # Obtener el ID de la implementación
+          DEPLOYMENT_ID=$(aws ecs describe-services \
             --cluster deployFargate-cluster \
             --services testFargate-service \
-            --query 'services[0].deployments' \
-            --output json)
-          echo "Deployment Details: $DEPLOYMENT_DETAILS"
+            --query 'services[0].deployments[?status==`PRIMARY`].id' \
+            --output text)
+          echo "Monitoring deployment with ID: $DEPLOYMENT_ID"
+          
+          # Monitorear el estado de la implementación hasta que sea ACTIVE
+          while true; do
+            CURRENT_STATUS=$(aws ecs describe-services \
+              --cluster deployFargate-cluster \
+              --services testFargate-service \
+              --query 'services[0].deployments[0].status' \
+              --output text)
+            echo "Current deployment status: $CURRENT_STATUS"
+            
+            # Si el estado es PRIMARY, monitoreamos si cambia a ACTIVE
+            if [ "$CURRENT_STATUS" == "PRIMARY" ]; then
+              echo "Deployment in progress, waiting for status to change to ACTIVE..."
+              sleep 5
+            elif [ "$CURRENT_STATUS" == "ACTIVE" ]; then
+              echo "Deployment completed successfully."
+              break
+            else
+              # Si hay un estado de error, se captura y muestra el mensaje
+              ERROR_MESSAGE=$(aws ecs describe-services \
+                --cluster deployFargate-cluster \
+                --services testFargate-service \
+                --query 'services[0].deployments[0].rolloutStateReason' \
+                --output text)
+              echo "Deployment failed. Error: $ERROR_MESSAGE"
+              exit 1
+            fi
+          done
