@@ -71,7 +71,7 @@ jobs:
       
           # Obtener el ID de las tareas en ejecución
           TASK_ID=$(aws ecs list-tasks --cluster deployFargate-cluster --service-name testFargate-service --query "taskArns[0]" --output text)
-      
+          echo "ID de la tarea en ejecución: $TASK_ID"
           # Comprobar si el servicio está activo
           if [ "$SERVICE_STATUS" != "ACTIVE" ]; then
             echo "Error: El servicio no está activo. Estado del servicio: $SERVICE_STATUS"
