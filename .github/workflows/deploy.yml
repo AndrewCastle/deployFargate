@@ -67,7 +67,7 @@ jobs:
       - name: Verificar estado del despliegue en Fargate
         run: |
           echo "Esperando 10 segundos para que el nuevo servicio se inicie..."
-          sleep 10
+          sleep 15
         
           # Obtener el estado del servicio ECS
           SERVICE_STATUS=$(aws ecs describe-services --cluster deployFargate-cluster --services testFargate-service --query "services[0].status" --output text)
