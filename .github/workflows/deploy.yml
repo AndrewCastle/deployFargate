@@ -14,6 +14,28 @@ jobs:
         with:
           fetch-depth: 0 
 
+      - name: Set up SonarCloud
+        uses: sonarsource/sonarqube-scan-action@v5.0.0
+        env:
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: "-Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} -Dsonar.organization=${{ secrets.SONAR_ORG }}"
+
+      - name: Check SonarCloud Quality Gate status
+        run: |
+          echo "Checking SonarCloud Quality Gate status..."
+          RESULT=$(curl -s -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${{ secrets.SONAR_PROJECT_KEY }}")
+          echo "SonarCloud API response: $RESULT"
+          STATUS=$(echo $RESULT | jq -r '.projectStatus.status')
+          if [ "$STATUS" != "OK" ]; then
+            echo "SonarCloud Quality Gate failed! Status: $STATUS"
+            echo "Details:"
+            echo $RESULT | jq -r '.projectStatus.conditions[] | select(.status == "ERROR") | "Metric: \(.metricKey) - Actual Value: \(.actualValue) - Error Threshold: \(.errorThreshold)"'
+            exit 1
+          else
+            echo "SonarCloud Quality Gate passed!"
+          fi
+
       - name: Set up AWS credentials
         uses: aws-actions/configure-aws-credentials@v4.1.0
         with:
@@ -22,21 +44,18 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2.0.1
+      
+      - name: Build, tag, and push Docker image to ECR
         run: |
-          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
-
-      - name: Build Docker image
-        run: |
-          docker build -t ${{ secrets.ECR_REPOSITORY_NAME }} .
-
-      - name: Tag Docker image
-        run: |
-          docker tag ${{ secrets.ECR_REPOSITORY_NAME }}:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY_NAME }}:latest
-
-      - name: Push Docker image to ECR
-        run: |
+          # Construir la imagen Docker y etiquetarla en un solo paso
+          docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY_NAME }}:latest .
+          
+          # Empujar la imagen construida al repositorio de ECR
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY_NAME }}:latest
 
+      # Actualizar el servicio de ECS para hacer un despliegue con la nueva imagen
       - name: Update ECS service on Fargate
         run: |
           aws ecs update-service \
