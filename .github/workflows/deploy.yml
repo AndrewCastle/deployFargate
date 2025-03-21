@@ -53,7 +53,7 @@ jobs:
           while [ "$TASK_PENDING" == "true" ]; do
             # Obtener la última tarea pendiente
             CURRENT_TASK_ID=$(aws ecs list-tasks --cluster deployFargate-cluster --service-name testFargate-service --desired-status PENDING --query "taskArns[-1]" --output text)
-            
+            echo "El ID de la tarea es: $CURRENT_TASK_ID"
             # Si el ID no es "None", significa que la tarea está pendiente
             if [ "$CURRENT_TASK_ID" != "None" ]; then
               TASK_PENDING=false
