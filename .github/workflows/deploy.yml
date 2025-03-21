@@ -69,13 +69,11 @@ jobs:
               echo "Error: La tarea no está en estado RUNNING. Motivo del fallo: $REASON"
               exit 1
             fi
-      
             # Si no está en estado RUNNING, intentamos de nuevo hasta alcanzar el máximo de intentos
             if [ $ATTEMPT -ge $MAX_ATTEMPTS ]; then
               echo "Error: La tarea no ha cambiado al estado RUNNING después de varios intentos."
               exit 1
             fi
-            
             # Incrementar el contador de intentos
             ATTEMPT=$((ATTEMPT + 1))
             echo "Esperando 5 segundos antes de reintentar..."
