@@ -57,24 +57,24 @@ jobs:
             --output text)
           echo "Monitoring deployment with ID: $DEPLOYMENT_ID"
           
-          # Monitorear el estado de la implementación hasta que sea ACTIVE
+          # Monitorear el estado de la implementación hasta que sea COMPLETED o FAILED
           while true; do
-            CURRENT_STATUS=$(aws ecs describe-services \
+            CURRENT_ROLL_OUT_STATE=$(aws ecs describe-services \
               --cluster deployFargate-cluster \
               --services testFargate-service \
-              --query 'services[0].deployments[0].status' \
+              --query 'services[0].deployments[0].rolloutState' \
               --output text)
-            echo "Current deployment status: $CURRENT_STATUS"
+            echo "Current rollout state: $CURRENT_ROLL_OUT_STATE"
             
-            # Si el estado es PRIMARY, monitoreamos si cambia a ACTIVE
-            if [ "$CURRENT_STATUS" == "PRIMARY" ]; then
-              echo "Deployment in progress, waiting for status to change to ACTIVE..."
+            # Si el rolloutState es IN_PROGRESS, monitoreamos hasta que cambie
+            if [ "$CURRENT_ROLL_OUT_STATE" == "IN_PROGRESS" ]; then
+              echo "Deployment in progress, waiting for status to change to COMPLETED..."
               sleep 5
-            elif [ "$CURRENT_STATUS" == "ACTIVE" ]; then
+            elif [ "$CURRENT_ROLL_OUT_STATE" == "COMPLETED" ]; then
               echo "Deployment completed successfully."
               break
-            else
-              # Si hay un estado de error, se captura y muestra el mensaje
+            elif [ "$CURRENT_ROLL_OUT_STATE" == "FAILED" ]; then
+              # Si el estado de rolloutState es FAILED, capturamos el error
               ERROR_MESSAGE=$(aws ecs describe-services \
                 --cluster deployFargate-cluster \
                 --services testFargate-service \
