@@ -75,16 +75,24 @@ jobs:
             exit 1
           fi
           
-          # Obtener el ID de la nueva tarea en ejecución
-          TASK_ID=$(aws ecs list-tasks --cluster deployFargate-cluster --service-name testFargate-service --query "taskArns[0]" --output text)
+          # Forzar un nuevo despliegue
+          echo "Forzando un nuevo despliegue..."
+          aws ecs update-service --cluster deployFargate-cluster --service testFargate-service --force-new-deployment
+      
+          # Esperar un momento para que el servicio inicie la nueva tarea
+          echo "Esperando a que el nuevo servicio se inicie..."
+          sleep 10  # Ajusta el tiempo de espera según lo que necesites
+      
+          # Obtener todas las tareas asociadas al servicio (se actualizarán tras el despliegue)
+          TASK_ID=$(aws ecs list-tasks --cluster deployFargate-cluster --service-name testFargate-service --desired-status RUNNING --query "taskArns[0]" --output text)
           echo "ID de la nueva tarea en ejecución: $TASK_ID"
           
-          # Comprobar si hay una tarea en ejecución
+          # Verificar si no hay tareas en ejecución
           if [ "$TASK_ID" == "None" ]; then
             echo "Error: No hay tareas en ejecución en el servicio."
             exit 1
           fi
-          
+      
           # Esperar hasta que la tarea esté en estado RUNNING
           while true; do
             TASK_STATUS=$(aws ecs describe-tasks --cluster deployFargate-cluster --tasks $TASK_ID --query "tasks[0].lastStatus" --output text)
@@ -103,4 +111,3 @@ jobs:
           fi
           
           echo "El servicio está activo y las tareas están corriendo correctamente."
-      
