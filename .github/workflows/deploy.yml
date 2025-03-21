@@ -44,30 +44,12 @@ jobs:
             --force-new-deployment \
             --region ${{ secrets.AWS_REGION }}
             
-      - name: Monitor service deployment status
+      - name: Describe ECS Service Deployment
         run: |
-          # Inicializamos el monitoreo de la implementación
-          DEPLOYMENT_ID=$(aws ecs describe-services \
-            --cluster deployFargate-cluster \
-            --services testFargate-service \
-            --query 'services[0].deployments[?status==`PRIMARY`].id' \
-            --output text)
-          echo "Monitoring deployment with ID: $DEPLOYMENT_ID"
-          
-          # Monitorear el estado de la implementación hasta que se complete
-          until [ "$(aws ecs describe-services \
-                    --cluster deployFargate-cluster \
-                    --services testFargate-service \
-                    --query 'services[0].deployments[0].status' \
-                    --output text)" == "PRIMARY" ]; do
-            CURRENT_STATUS=$(aws ecs describe-services \
-              --cluster deployFargate-cluster \
-              --services testFargate-service \
-              --query 'services[0].deployments[0].status' \
-              --output text)
-            echo "Current deployment status: $CURRENT_STATUS"
-            echo "Waiting for deployment to complete..."
-            sleep 5
-          done
-          
-          echo "Deployment completed successfully. Deployment ID: $DEPLOYMENT_ID"
+          echo "Getting deployment details for ECS service..."
+          DEPLOYMENT_DETAILS=$(aws ecs describe-services \
+            --cluster your-cluster-name \
+            --services your-service-name \
+            --query 'services[0].deployments' \
+            --output json)
+          echo "Deployment Details: $DEPLOYMENT_DETAILS"
