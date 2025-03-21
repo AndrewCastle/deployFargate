@@ -48,14 +48,16 @@ jobs:
         run: |
           echo "Esperando 20 segundos para que el nuevo servicio se inicie..."
           sleep 20
-          # Obtener el estado del servicio ECS
-          SERVICE_STATUS=$(aws ecs describe-services --cluster deployFargate-cluster --services testFargate-service --query "services[0].status" --output text)
-          # Comprobar si el servicio está activo
-          if [ "$SERVICE_STATUS" != "ACTIVE" ]; then
-            echo "Error: El servicio no está activo. Estado del servicio: $SERVICE_STATUS"
-            exit 1
-          fi
-      
           # Obtener la última tarea creada que esté en estado RUNNING
           TASK_ID=$(aws ecs list-tasks --cluster deployFargate-cluster --service-name testFargate-service --desired-status RUNNING --query "taskArns[-1]" --output text)
           echo "ID de la nueva tarea en ejecución: $TASK_ID"
+          
+          # Verificar el estado de la tarea
+          TASK_STATUS=$(aws ecs describe-tasks --cluster deployFargate-cluster --tasks $TASK_ID --query "tasks[0].lastStatus" --output text)
+          
+          if [ "$TASK_STATUS" != "RUNNING" ]; then
+            echo "Error: La tarea no está en estado RUNNING. Estado de la tarea: $TASK_STATUS"
+            exit 1
+          fi
+          
+          echo "La tarea está en estado RUNNING y funcionando correctamente."
