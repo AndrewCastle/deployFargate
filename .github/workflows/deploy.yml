@@ -48,8 +48,8 @@ jobs:
         run: |
           echo "Getting deployment details for ECS service..."
           DEPLOYMENT_DETAILS=$(aws ecs describe-services \
-            --cluster your-cluster-name \
-            --services your-service-name \
+            --cluster deployFargate-cluster \
+            --services testFargate-service \
             --query 'services[0].deployments' \
             --output json)
           echo "Deployment Details: $DEPLOYMENT_DETAILS"
