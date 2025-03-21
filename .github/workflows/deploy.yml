@@ -53,4 +53,5 @@ jobs:
           echo "ID de la última tarea en ejecución antes de despliegue: $PREVIOUS_TASK_ID"
       
           CURRENT_TASK_ID=$(aws ecs list-tasks --cluster deployFargate-cluster --service-name testFargate-service --desired-status PENDING --query "taskArns[-1]" --output text)
-      
+          # Imprimir el valor de CURRENT_TASK_ID
+          echo "El ID de la tarea es: $CURRENT_TASK_ID"
