@@ -43,26 +43,13 @@ jobs:
             --service testFargate-service \
             --force-new-deployment \
             --region ${{ secrets.AWS_REGION }}
-
-      - name: Monitor service deployment status
-        run: |
-          # Monitorear la implementación hasta que esté en estado COMPLETED
-          until [ "$(aws ecs describe-services \
-                    --cluster your-cluster-name \
-                    --services your-service-name \
-                    --query 'services[0].deployments[0].status' \
-                    --output text)" == "PRIMARY" ]; do
-            echo "Waiting for deployment to complete..."
-            sleep 30
-          done
-          echo "Deployment completed successfully."
-
+            
       - name: Monitor service deployment status
         run: |
           # Inicializamos el monitoreo de la implementación
           DEPLOYMENT_ID=$(aws ecs describe-services \
             --cluster deployFargate-cluster \
-            --services 	testFargate-service \
+            --services testFargate-service \
             --query 'services[0].deployments[0].id' \
             --output text)
           echo "Monitoring deployment with ID: $DEPLOYMENT_ID"
@@ -70,7 +57,7 @@ jobs:
           # Monitorear el estado de la implementación hasta que se complete
           until [ "$(aws ecs describe-services \
                     --cluster deployFargate-cluster \
-                    --services 	testFargate-service \
+                    --services testFargate-service \
                     --query 'services[0].deployments[0].status' \
                     --output text)" == "PRIMARY" ]; do
             CURRENT_STATUS=$(aws ecs describe-services \
