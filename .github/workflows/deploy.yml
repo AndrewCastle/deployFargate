@@ -51,28 +51,28 @@ jobs:
           # Obtener el ID de la última tarea en ejecución antes de forzar el despliegue
           PREVIOUS_TASK_ID=$(aws ecs list-tasks --cluster deployFargate-cluster --service-name testFargate-service --desired-status RUNNING --query "taskArns[-1]" --output text)
           echo "ID de la última tarea en ejecución antes de despliegue: $PREVIOUS_TASK_ID"
-        
-          # Forzar el despliegue
-          echo "Forzando un nuevo despliegue..."
-          aws ecs update-service --cluster deployFargate-cluster --service testFargate-service --force-new-deployment
-          
+      
           # Bucle para comprobar el cambio de tarea
           MAX_ATTEMPTS=30  # Máximo de intentos para evitar un bucle infinito
           ATTEMPT=0
           while true; do
-            # Obtener el ID de la última tarea en ejecución (incluyendo tareas en estado PENDING)
-            CURRENT_TASK_ID=$(aws ecs list-tasks --cluster deployFargate-cluster --service-name testFargate-service --desired-status RUNNING --query "taskArns[-1]" --output text)
+            CURRENT_TASK_ID=$(aws ecs list-tasks --cluster deployFargate-cluster --service-name testFargate-service --desired-status PENDING --query "taskArns[-1]" --output text)
       
-            # Verificar si la tarea está en estado PENDING o RUNNING
             TASK_STATUS=$(aws ecs describe-tasks --cluster deployFargate-cluster --tasks $CURRENT_TASK_ID --query "tasks[0].lastStatus" --output text)
             
             echo "ID de la última tarea en ejecución actual: $CURRENT_TASK_ID, Estado: $TASK_STATUS"
             
-            # Comprobar si el ID de la tarea ha cambiado y si la nueva tarea ya está en RUNNING
+            # Comprobar si el ID de la tarea ha cambiado
             if [ "$CURRENT_TASK_ID" != "$PREVIOUS_TASK_ID" ]; then
+              # Esperamos a que la tarea cambie de PENDING a RUNNING
               if [ "$TASK_STATUS" == "RUNNING" ]; then
                 echo "La tarea está en estado RUNNING y funcionando correctamente."
                 break
+              fi
+              
+              # Si la tarea está en estado PENDING, esperar hasta que cambie
+              if [ "$TASK_STATUS" == "PENDING" ]; then
+                echo "La tarea está en estado PENDING, esperando a que comience..."
               fi
               
               # Si la tarea está detenida, obtener el motivo del fallo
