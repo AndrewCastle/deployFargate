@@ -43,25 +43,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # Reemplaza el login manual de ECR con la acción de login de Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2.0.1
 
-      # Construir la imagen Docker con el nombre del repositorio de ECR
-      - name: Build Docker image
+      - name: Build, tag, and push Docker image to ECR
         run: |
-          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest .
-
-      # Etiquetar la imagen Docker para subirla a ECR
-      - name: Tag Docker image
-        run: |
-          docker tag ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest
-
-      # Subir la imagen Docker a ECR
-      - name: Push Docker image to ECR
-        run: |
-          docker push ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest
+          # Construir la imagen Docker y etiquetarla en un solo paso
+          docker build -t ${{ steps.ecr-actions.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest .
+      
+          # Empujar la imagen construida al repositorio de ECR
+          docker push ${{ steps.ecr-actions.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest
 
       # Actualizar el servicio de ECS para hacer un despliegue con la nueva imagen
       - name: Update ECS service on Fargate
