@@ -48,16 +48,36 @@ jobs:
         run: |
           echo "Esperando 20 segundos para que el nuevo servicio se inicie..."
           sleep 20
-          # Obtener la última tarea creada que esté en estado RUNNING
+          
           TASK_ID=$(aws ecs list-tasks --cluster deployFargate-cluster --service-name testFargate-service --desired-status RUNNING --query "taskArns[-1]" --output text)
           echo "ID de la nueva tarea en ejecución: $TASK_ID"
-          
-          # Verificar el estado de la tarea
-          TASK_STATUS=$(aws ecs describe-tasks --cluster deployFargate-cluster --tasks $TASK_ID --query "tasks[0].lastStatus" --output text)
-          
-          if [ "$TASK_STATUS" != "RUNNING" ]; then
-            echo "Error: La tarea no está en estado RUNNING. Estado de la tarea: $TASK_STATUS"
-            exit 1
-          fi
-          
-          echo "La tarea está en estado RUNNING y funcionando correctamente."
+          # Bucle para esperar que la tarea entre en estado RUNNING
+          MAX_ATTEMPTS=30  # Máximo de intentos para evitar un bucle infinito
+          ATTEMPT=0
+          while true; do
+            TASK_STATUS=$(aws ecs describe-tasks --cluster deployFargate-cluster --tasks $TASK_ID --query "tasks[0].lastStatus" --output text)
+            echo "Estado actual de la tarea: $TASK_STATUS"
+            
+            if [ "$TASK_STATUS" == "RUNNING" ]; then
+              echo "La tarea está en estado RUNNING y funcionando correctamente."
+              break
+            fi
+            
+            # Verificar si la tarea falló y obtener el motivo
+            if [ "$TASK_STATUS" == "STOPPED" ]; then
+              REASON=$(aws ecs describe-tasks --cluster deployFargate-cluster --tasks $TASK_ID --query "tasks[0].stoppedReason" --output text)
+              echo "Error: La tarea no está en estado RUNNING. Motivo del fallo: $REASON"
+              exit 1
+            fi
+      
+            # Si no está en estado RUNNING, intentamos de nuevo hasta alcanzar el máximo de intentos
+            if [ $ATTEMPT -ge $MAX_ATTEMPTS ]; then
+              echo "Error: La tarea no ha cambiado al estado RUNNING después de varios intentos."
+              exit 1
+            fi
+            
+            # Incrementar el contador de intentos
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Esperando 5 segundos antes de reintentar..."
+            sleep 5
+          done
