@@ -61,21 +61,21 @@ jobs:
         run: |
           # Inicializamos el monitoreo de la implementación
           DEPLOYMENT_ID=$(aws ecs describe-services \
-            --cluster your-cluster-name \
-            --services your-service-name \
+            --cluster deployFargate-cluster \
+            --services 	testFargate-service \
             --query 'services[0].deployments[0].id' \
             --output text)
           echo "Monitoring deployment with ID: $DEPLOYMENT_ID"
           
           # Monitorear el estado de la implementación hasta que se complete
           until [ "$(aws ecs describe-services \
-                    --cluster your-cluster-name \
-                    --services your-service-name \
+                    --cluster deployFargate-cluster \
+                    --services 	testFargate-service \
                     --query 'services[0].deployments[0].status' \
                     --output text)" == "PRIMARY" ]; do
             CURRENT_STATUS=$(aws ecs describe-services \
-              --cluster your-cluster-name \
-              --services your-service-name \
+              --cluster deployFargate-cluster \
+              --services 	testFargate-service \
               --query 'services[0].deployments[0].status' \
               --output text)
             echo "Current deployment status: $CURRENT_STATUS"
