@@ -43,28 +43,59 @@ jobs:
             --force-new-deployment \
             --region ${{ secrets.AWS_REGION }}
             
-      - name: Monitor ECS Service Deployment
+      - name: Monitorizar el despliegue del servicio ECS
         run: |
-          echo "Supervisión del despliegue del servicio ECS..."
-          
-          DEPLOYMENT_ID=$(aws ecs describe-services \ --cluster deployFargate-cluster \ --services testFargate-service \ --query 'services[0].deployments[?status==`PRIMARY`].id' \ --output text)
-          echo "Seguimiento del despliegue con ID: $DEPLOYMENT_ID"
-          
+          # Inicializar monitoreo de la implementación
+          echo "Monitoreando el despliegue del servicio ECS..."
+      
+          # Obtener el ID de la implementación
+          DEPLOYMENT_ID=$(aws ecs describe-services \
+            --cluster deployFargate-cluster \
+            --services testFargate-service \
+            --query 'services[0].deployments[?status==`PRIMARY`].id' \
+            --output text)
+          echo "Monitoreando el despliegue con ID: $DEPLOYMENT_ID"
+      
+          # Función para obtener el estado del rollout
+          get_rollout_state() {
+            aws ecs describe-services \
+              --cluster deployFargate-cluster \
+              --services testFargate-service \
+              --query 'services[0].deployments[0].rolloutState' \
+              --output text
+          }
+      
+          # Función para obtener el mensaje de error del rollout
+          get_error_message() {
+            aws ecs describe-services \
+              --cluster deployFargate-cluster \
+              --services testFargate-service \
+              --query 'services[0].deployments[0].rolloutStateReason' \
+              --output text
+          }
+      
+          # Monitorear el estado de la implementación hasta que sea COMPLETADO o FALLIDO
           while true; do
-            CURRENT_ROLL_OUT_STATE=$(aws ecs describe-services \
-              --cluster deployFargate-cluster \ --services testFargate-service \ --query 'services[0].deployments[0].rolloutState' \ --output text)
-            echo "Estado actual del despliegue: $CURRENT_ROLL_OUT_STATE"
-            
-            # Si el rolloutState es IN_PROGRESS, monitoreamos hasta que cambie
-            if [ "$CURRENT_ROLL_OUT_STATE" == "IN_PROGRESS" ]; then
-              echo "Implementación en progreso, a la espera de que el estado cambie a COMPLETADO..."
-              sleep 20
-            elif [ "$CURRENT_ROLL_OUT_STATE" == "COMPLETED" ]; then
-              echo "Implementación completada satisfactoriamente."
-              break
-            elif [ "$CURRENT_ROLL_OUT_STATE" == "FAILED" ]; then
-              ERROR_MESSAGE=$(aws ecs describe-services \ --cluster deployFargate-cluster \ --services testFargate-service \ --query 'services[0].deployments[0].rolloutStateReason' \ --output text)
-              echo "Implementación fallida. Error: $ERROR_MESSAGE"
-              exit 1
-            fi
+            CURRENT_ROLL_OUT_STATE=$(get_rollout_state)
+            echo "Estado actual del rollout: $CURRENT_ROLL_OUT_STATE"
+      
+            case "$CURRENT_ROLL_OUT_STATE" in
+              "IN_PROGRESS")
+                echo "Despliegue en progreso, esperando que el estado cambie a COMPLETADO..."
+                sleep 20
+                ;;
+              "COMPLETED")
+                echo "Despliegue completado satisfactoriamente."
+                break
+                ;;
+              "FAILED")
+                ERROR_MESSAGE=$(get_error_message)
+                echo "Despliegue fallido. Error: $ERROR_MESSAGE"
+                exit 1
+                ;;
+              *)
+                echo "Estado inesperado: $CURRENT_ROLL_OUT_STATE"
+                exit 1
+                ;;
+            esac
           done
