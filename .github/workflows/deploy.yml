@@ -1,4 +1,4 @@
-name: Deploy to AWS Fargate
+  name: Deploy to AWS Fargate
 
 on:
   push:
@@ -35,7 +35,7 @@ jobs:
           else
             echo "SonarCloud Quality Gate passed!"
           fi
-        
+
       - name: Set up AWS credentials
         uses: aws-actions/configure-aws-credentials@v4.1.0
         with:
@@ -43,22 +43,27 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      # Reemplaza el login manual de ECR con la acción de login de Amazon ECR
       - name: Login to Amazon ECR
-        run: |
-          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2.0.1
 
+      # Construir la imagen Docker con el nombre del repositorio de ECR
       - name: Build Docker image
         run: |
-          docker build -t ${{ secrets.ECR_REPOSITORY_NAME }} .
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest .
 
+      # Etiquetar la imagen Docker para subirla a ECR
       - name: Tag Docker image
         run: |
-          docker tag ${{ secrets.ECR_REPOSITORY_NAME }}:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY_NAME }}:latest
+          docker tag ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest
 
+      # Subir la imagen Docker a ECR
       - name: Push Docker image to ECR
         run: |
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY_NAME }}:latest
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest
 
+      # Actualizar el servicio de ECS para hacer un despliegue con la nueva imagen
       - name: Update ECS service on Fargate
         run: |
           aws ecs update-service \
