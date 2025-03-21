@@ -68,35 +68,39 @@ jobs:
         run: |
           # Obtener el estado del servicio ECS
           SERVICE_STATUS=$(aws ecs describe-services --cluster deployFargate-cluster --services testFargate-service --query "services[0].status" --output text)
-      
-          # Obtener el ID de las tareas en ejecución
-          TASK_ID=$(aws ecs list-tasks --cluster deployFargate-cluster --service-name testFargate-service --query "taskArns[0]" --output text)
-          echo "ID de la tarea en ejecución: $TASK_ID"
+          
           # Comprobar si el servicio está activo
           if [ "$SERVICE_STATUS" != "ACTIVE" ]; then
             echo "Error: El servicio no está activo. Estado del servicio: $SERVICE_STATUS"
             exit 1
           fi
-      
-          # Comprobar el estado de la tarea si existe al menos una
+          
+          # Obtener el ID de la nueva tarea en ejecución
+          TASK_ID=$(aws ecs list-tasks --cluster deployFargate-cluster --service-name testFargate-service --query "taskArns[0]" --output text)
+          echo "ID de la nueva tarea en ejecución: $TASK_ID"
+          
+          # Comprobar si hay una tarea en ejecución
           if [ "$TASK_ID" == "None" ]; then
             echo "Error: No hay tareas en ejecución en el servicio."
             exit 1
           fi
-      
-          # Obtener el estado de la tarea
-          TASK_STATUS=$(aws ecs describe-tasks --cluster deployFargate-cluster --tasks $TASK_ID --query "tasks[0].lastStatus" --output text)
-      
-          if [ "$TASK_STATUS" != "RUNNING" ]; then
-            echo "Error: La tarea no está corriendo. Estado de la tarea: $TASK_STATUS"
-            exit 1
-          fi
-      
+          
+          # Esperar hasta que la tarea esté en estado RUNNING
+          while true; do
+            TASK_STATUS=$(aws ecs describe-tasks --cluster deployFargate-cluster --tasks $TASK_ID --query "tasks[0].lastStatus" --output text)
+            if [ "$TASK_STATUS" == "RUNNING" ]; then
+              break
+            fi
+            echo "Esperando que la tarea inicie... Estado actual: $TASK_STATUS"
+            sleep 5
+          done
+          
           # Verificar eventos del servicio para detectar errores comunes
           EVENTS=$(aws ecs describe-services --cluster deployFargate-cluster --services testFargate-service --query "services[0].events" --output text)
           if [[ "$EVENTS" == *"Unable to place a task"* || "$EVENTS" == *"Insufficient capacity"* || "$EVENTS" == *"Task definition not found"* ]]; then
             echo "Error crítico en el despliegue: $EVENTS"
             exit 1
           fi
-      
+          
           echo "El servicio está activo y las tareas están corriendo correctamente."
+      
