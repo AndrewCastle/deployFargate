@@ -69,7 +69,7 @@ jobs:
             # Si el rolloutState es IN_PROGRESS, monitoreamos hasta que cambie
             if [ "$CURRENT_ROLL_OUT_STATE" == "IN_PROGRESS" ]; then
               echo "Deployment in progress, waiting for status to change to COMPLETED..."
-              sleep 5
+              sleep 20
             elif [ "$CURRENT_ROLL_OUT_STATE" == "COMPLETED" ]; then
               echo "Deployment completed successfully."
               break
