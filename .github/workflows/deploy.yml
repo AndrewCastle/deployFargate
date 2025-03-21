@@ -63,3 +63,13 @@ jobs:
             --service testFargate-service \
             --force-new-deployment \
             --region ${{ secrets.AWS_REGION }}
+
+      - name: Verificar estado del despliegue en Fargate
+        run: |
+          STATUS=$(aws ecs describe-services --cluster deployFargate-cluster --services testFargate-service --query "services[0].status" --output text)
+          if [ "$STATUS" != "ACTIVE" ]; then
+            echo "El servicio no está activo, hay un problema con el despliegue."
+            exit 1
+          else
+            echo "El servicio está activo y funcionando correctamente."
+          fi
