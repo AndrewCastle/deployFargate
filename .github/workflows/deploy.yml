@@ -50,7 +50,7 @@ jobs:
           DEPLOYMENT_ID=$(aws ecs describe-services \
             --cluster deployFargate-cluster \
             --services testFargate-service \
-            --query 'services[0].deployments[0].id' \
+            --query 'services[0].deployments[?status==`PRIMARY`].id' \
             --output text)
           echo "Monitoring deployment with ID: $DEPLOYMENT_ID"
           
@@ -62,7 +62,7 @@ jobs:
                     --output text)" == "PRIMARY" ]; do
             CURRENT_STATUS=$(aws ecs describe-services \
               --cluster deployFargate-cluster \
-              --services 	testFargate-service \
+              --services testFargate-service \
               --query 'services[0].deployments[0].status' \
               --output text)
             echo "Current deployment status: $CURRENT_STATUS"
