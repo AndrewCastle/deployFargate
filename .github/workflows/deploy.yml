@@ -66,10 +66,25 @@ jobs:
 
       - name: Verificar estado del despliegue en Fargate
         run: |
-          STATUS=$(aws ecs describe-services --cluster deployFargate-cluster --services testFargate-service --query "services[0].status" --output text)
-          if [ "$STATUS" != "ACTIVE" ]; then
-            echo "El servicio no está activo, hay un problema con el despliegue."
+          # Obtener el estado del servicio ECS
+          SERVICE_STATUS=$(aws ecs describe-services --cluster deployFargate-cluster --services testFargate-service --query "services[0].status" --output text)
+          TASK_STATUS=$(aws ecs describe-tasks --cluster deployFargate-cluster --service testFargate-service --query "tasks[0].lastStatus" --output text)
+      
+          # Comprobar si el servicio está activo y si las tareas están corriendo
+          if [ "$SERVICE_STATUS" != "ACTIVE" ]; then
+            echo "Error: El servicio no está activo. Estado del servicio: $SERVICE_STATUS"
             exit 1
-          else
-            echo "El servicio está activo y funcionando correctamente."
           fi
+      
+          if [ "$TASK_STATUS" != "RUNNING" ]; then
+            echo "Error: Las tareas no están corriendo. Estado de la tarea: $TASK_STATUS"
+            exit 1
+          fi
+      
+          # Verificar eventos del servicio para detectar errores comunes
+          EVENTS=$(aws ecs describe-services --cluster deployFargate-cluster --services testFargate-service --query "services[0].events" --output text)
+          if [[ "$EVENTS" == *"Unable to place a task"* || "$EVENTS" == *"Insufficient capacity"* || "$EVENTS" == *"Task definition not found"* ]]; then
+            echo "Error crítico en el despliegue: $EVENTS"
+            exit 1
+          fi
+          echo "El servicio está activo y las tareas están corriendo correctamente."
