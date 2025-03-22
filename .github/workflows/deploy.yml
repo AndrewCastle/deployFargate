@@ -1,4 +1,4 @@
-name: Deploy to AWS Fargate
+name: Desplegar a AWS Fargate
 
 on:
   push:
@@ -9,25 +9,45 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Revisar código
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 
 
+      - name: Configurar SonarCloud
+        uses: sonarsource/sonarqube-scan-action@v5.0.0
+        env:
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: "-Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} -Dsonar.organization=${{ secrets.SONAR_ORG }}"
 
+      - name: Verificar el estado del Quality Gate de SonarCloud
+        run: |
+          echo "Verificando el estado del Quality Gate de SonarCloud..."
+          RESULT=$(curl -s -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${{ secrets.SONAR_PROJECT_KEY }}")
+          echo "Respuesta de la API de SonarCloud: $RESULT"
+          STATUS=$(echo $RESULT | jq -r '.projectStatus.status')
+          if [ "$STATUS" != "OK" ]; then
+            echo "¡Quality Gate de SonarCloud falló! Estado: $STATUS"
+            echo "Detalles:"
+            echo $RESULT | jq -r '.projectStatus.conditions[] | select(.status == "ERROR") | "Métrica: \(.metricKey) - Valor Actual: \(.actualValue) - Umbral de Error: \(.errorThreshold)"'
+            exit 1
+          else
+            echo "¡Quality Gate de SonarCloud aprobado!"
+          fi
 
-      - name: Set up AWS credentials
+      - name: Configurar credenciales de AWS
         uses: aws-actions/configure-aws-credentials@v4.1.0
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: Iniciar sesión en Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2.0.1
       
-      - name: Build, tag, and push Docker image to ECR
+      - name: Construir, etiquetar y subir la imagen Docker a ECR
         run: |
           # Construir la imagen Docker y etiquetarla en un solo paso
           docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY_NAME }}:latest .
@@ -35,7 +55,7 @@ jobs:
           # Empujar la imagen construida al repositorio de ECR
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY_NAME }}:latest
 
-      - name: Update ECS service on Fargate
+      - name: Actualizar el servicio ECS en Fargate
         run: |
           aws ecs update-service \
             --cluster deployFargate-cluster \
