@@ -58,8 +58,8 @@ jobs:
       - name: Actualizar el servicio ECS en Fargate
         run: |
           aws ecs update-service \
-            --cluster deployFargate-cluster \
-            --service testFargate-service \
+            --cluster ${{ secrets.CLUSTER_NAME }} \
+            --service ${{ secrets.FARGATE_SERVICE_NAME }} \
             --force-new-deployment \
             --region ${{ secrets.AWS_REGION }}
             
@@ -70,8 +70,8 @@ jobs:
       
           # Obtener el ID de la implementación
           DEPLOYMENT_ID=$(aws ecs describe-services \
-            --cluster deployFargate-cluster \
-            --services testFargate-service \
+            --cluster ${{ secrets.CLUSTER_NAME }} \
+            --service ${{ secrets.FARGATE_SERVICE_NAME }} \
             --query 'services[0].deployments[?status==`PRIMARY`].id' \
             --output text)
           echo "Monitoreando el despliegue con ID: $DEPLOYMENT_ID"
@@ -79,8 +79,8 @@ jobs:
           # Función para obtener el estado del rollout
           get_rollout_state() {
             aws ecs describe-services \
-              --cluster deployFargate-cluster \
-              --services testFargate-service \
+              --cluster ${{ secrets.CLUSTER_NAME }} \
+              --service ${{ secrets.FARGATE_SERVICE_NAME }} \
               --query 'services[0].deployments[0].rolloutState' \
               --output text
           }
@@ -88,8 +88,8 @@ jobs:
           # Función para obtener el mensaje de error del rollout
           get_error_message() {
             aws ecs describe-services \
-              --cluster deployFargate-cluster \
-              --services testFargate-service \
+              --cluster ${{ secrets.CLUSTER_NAME }} \
+              --service ${{ secrets.FARGATE_SERVICE_NAME }} \
               --query 'services[0].deployments[0].rolloutStateReason' \
               --output text
           }
